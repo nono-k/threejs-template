@@ -1,19 +1,78 @@
 import * as THREE from 'three';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
-class Three  {
-  public renderer: THREE.WebGLRenderer;
-  public scene: THREE.Scene;
-  public camera: THREE.PerspectiveCamera;
-  public time = { delta: 0, elapsed: 0 };
+export class Three  {
+  readonly renderer: THREE.WebGLRenderer;
+  readonly scene: THREE.Scene;
+  readonly clock: THREE.Clock;
+  private _stats?: Stats;
+  private abortController?: AbortController;
 
-  private timer = new THREE.Timer();
-  private resizeCallback?: () => void;
+  constructor(canvas: HTMLCanvasElement) {
+    this.renderer = this.createRenderer(canvas);
+    this.scene = this.createScene();
+    this.clock = new THREE.Clock();
 
-  constructor() {
-    const { width, height, aspect } = this.size;
+    this.addEvents();
+  }
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true});
+  private createRenderer(canvas: HTMLCanvasElement) {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    return renderer;
+  }
+
+  private createScene() {
+    const scene = new THREE.Scene();
+    return scene;
+  }
+
+  private addEvents() {
+    this.abortController = new AbortController();
+
+    window.addEventListener('resize', () => {
+      const { innerWidth: width, innerHeight: height } = window;
+      this.renderer.setSize(width, height);
+    }, { signal: this.abortController.signal });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.clock.start();
+      else if (document.visibilityState === 'hidden') this.clock.stop();
+    }, { signal: this.abortController.signal });
+  }
+
+  get stats() {
+    if (!this._stats) {
+      this._stats = new Stats();
+      document.body.appendChild(this._stats.dom);
+    }
+    return this._stats;
+  }
+
+  get size() {
+    const { width, height } = this.renderer.domElement;
+    return { width, height, aspect: width / height };
+  }
+
+  converedScale(imageAspect: number) {
+    const screenAspect = this.size.aspect;
+    if (screenAspect < imageAspect) return [screenAspect / imageAspect, 1];
+    else return [1, imageAspect / screenAspect];
+  }
+
+  render(camera: THREE.Camera) {
+    this.renderer.setRenderTarget(null);
+    this.renderer.render(this.scene, camera);
+  }
+
+  fpsAnimationChecker(targetFps: number, animationCallback: () => void) {
+    return setInterval(() => animationCallback(), (1 / targetFps) * 1000);
+  }
+
+  dispose() {
+    this.renderer.setAnimationLoop(null);
+    this.renderer.dispose();
+    this.abortController?.abort();
   }
 }
-
-export const gl = new Three()
