@@ -3,9 +3,9 @@ import glsl from "vite-plugin-glsl";
 import path from "node:path";
 
 export default defineConfig({
+  base: "/threejs-template/",
 	root: "src/",
 	publicDir: "../public/",
-	base: "./",
 	plugins: [glsl()],
 	resolve: {
 		alias: {
