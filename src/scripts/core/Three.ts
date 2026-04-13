@@ -1,12 +1,21 @@
 import * as THREE from 'three';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 
+type Size = {
+  width: number;
+  height: number;
+  aspect: number;
+};
+
 export class Three  {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly clock: THREE.Clock;
   private _stats?: Stats;
   private abortController?: AbortController;
+
+  private resizeHandler?: (size: Size) => void;
+  private isActive = true;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = this.createRenderer(canvas);
@@ -17,9 +26,15 @@ export class Three  {
   }
 
   private createRenderer(canvas: HTMLCanvasElement) {
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true
+    });
+
+    const { innerWidth: width, innerHeight: height } = window;
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     return renderer;
   }
 
@@ -34,12 +49,27 @@ export class Three  {
     window.addEventListener('resize', () => {
       const { innerWidth: width, innerHeight: height } = window;
       this.renderer.setSize(width, height);
+      this.resizeHandler?.({ width, height, aspect: width / height });
     }, { signal: this.abortController.signal });
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') this.clock.start();
-      else if (document.visibilityState === 'hidden') this.clock.stop();
+      this.isActive = document.visibilityState === 'visible';
     }, { signal: this.abortController.signal });
+  }
+
+  setResizeHandler(fn: (size: Size) => void) {
+    this.resizeHandler = fn;
+  }
+
+  render(camera: THREE.Camera, update?: (delta: number) => void) {
+    if (!this.isActive) return;
+
+    const delta = this.clock.getDelta();
+    update?.(delta);
+    this.renderer.setRenderTarget(null);
+    this.renderer.render(this.scene, camera);
+
+    this._stats?.update();
   }
 
   get stats() {
@@ -50,24 +80,17 @@ export class Three  {
     return this._stats;
   }
 
-  get size() {
+  get size(): Size {
     const { width, height } = this.renderer.domElement;
     return { width, height, aspect: width / height };
   }
 
-  converedScale(imageAspect: number) {
+  getCoverScale(imageAspect: number): [number, number] {
     const screenAspect = this.size.aspect;
-    if (screenAspect < imageAspect) return [screenAspect / imageAspect, 1];
-    else return [1, imageAspect / screenAspect];
-  }
 
-  render(camera: THREE.Camera) {
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.scene, camera);
-  }
-
-  fpsAnimationChecker(targetFps: number, animationCallback: () => void) {
-    return setInterval(() => animationCallback(), (1 / targetFps) * 1000);
+    return screenAspect < imageAspect
+      ? [screenAspect / imageAspect, 1]
+      : [1, imageAspect / screenAspect];
   }
 
   dispose() {
