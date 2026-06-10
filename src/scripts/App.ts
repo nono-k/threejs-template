@@ -1,10 +1,9 @@
 import * as THREE from 'three';
-import { PerspectiveCamera, Controls } from './core/Camera';
+import { Controls, PerspectiveCamera } from './core/Camera';
 import { Three } from './core/Three';
 import { Gui } from './Gui';
-
-import vertex from './shaders/vertex.glsl?raw';
 import fragment from './shaders/fragment.glsl?raw';
+import vertex from './shaders/vertex.glsl?raw';
 
 export class App extends Three {
   private readonly camera: PerspectiveCamera;
@@ -36,7 +35,7 @@ export class App extends Three {
       fragmentShader: fragment,
       uniforms: {
         uTime: { value: 0 },
-      }
+      },
     });
 
     this.cube = new THREE.Mesh(geometry, material);
